@@ -1,6 +1,5 @@
 // Net balance per member: positive means they are owed money,
 // negative means they owe. Deleted expenses are always ignored.
-// Used for a member's overall position (e.g. the dashboard totals).
 export function computeNetBalances(members, expenses) {
   const net = Object.fromEntries(members.map((m) => [m.id, 0]))
   for (const expense of expenses) {
@@ -13,37 +12,35 @@ export function computeNetBalances(members, expenses) {
   return net
 }
 
-// Who owes whom, worked out directly from the expenses: whoever shares an
-// expense owes the person who paid it. Debts between the same two people are
-// netted against each other, so "A paid dinner, B paid the cab" collapses to
-// a single payment.
-//
-// Debts are deliberately NOT re-routed through third parties. Matching
-// overall balances instead ("minimise the number of transfers") can make a
-// new expense change what two uninvolved people owe each other, e.g. Hrishi's
-// debt to you going up because Aditya paid for the turf. Every payment listed
-// here traces back to expenses those two people actually shared.
-export function computeSettlements(members, expenses) {
-  const owes = {} // owes[from][to] = cents `from` owes `to`
-  for (const expense of expenses) {
-    if (expense.isDeleted) continue
-    for (const [memberId, share] of Object.entries(expense.shares)) {
-      if (memberId === expense.paidBy || share === 0) continue
-      owes[memberId] ??= {}
-      owes[memberId][expense.paidBy] = (owes[memberId][expense.paidBy] ?? 0) + share
-    }
+// Turns net balances into a short list of payments that settles everyone.
+// Greedy: repeatedly match the biggest debtor with the biggest creditor.
+// Each step fully settles at least one person, so there are at most n - 1
+// payments. It usually finds the fewest payments but does not guarantee it.
+export function simplifyDebts(net) {
+  const creditors = []
+  const debtors = []
+  for (const [id, amount] of Object.entries(net)) {
+    if (amount > 0) creditors.push({ id, amount })
+    else if (amount < 0) debtors.push({ id, amount: -amount })
   }
 
   const settlements = []
-  const ids = members.map((m) => m.id)
-  for (let i = 0; i < ids.length; i++) {
-    for (let j = i + 1; j < ids.length; j++) {
-      const a = ids[i]
-      const b = ids[j]
-      const diff = (owes[a]?.[b] ?? 0) - (owes[b]?.[a] ?? 0)
-      if (diff > 0) settlements.push({ from: a, to: b, amount: diff })
-      else if (diff < 0) settlements.push({ from: b, to: a, amount: -diff })
-    }
+  while (creditors.length && debtors.length) {
+    creditors.sort((a, b) => b.amount - a.amount)
+    debtors.sort((a, b) => b.amount - a.amount)
+    const creditor = creditors[0]
+    const debtor = debtors[0]
+    const amount = Math.min(creditor.amount, debtor.amount)
+
+    settlements.push({ from: debtor.id, to: creditor.id, amount })
+    creditor.amount -= amount
+    debtor.amount -= amount
+    if (creditor.amount === 0) creditors.shift()
+    if (debtor.amount === 0) debtors.shift()
   }
   return settlements
+}
+
+export function computeSettlements(members, expenses) {
+  return simplifyDebts(computeNetBalances(members, expenses))
 }
