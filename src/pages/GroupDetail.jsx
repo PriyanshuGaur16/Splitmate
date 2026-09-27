@@ -157,6 +157,11 @@ export default function GroupDetail() {
                 <div className="min-w-0">
                   <p className="flex items-center gap-2 font-medium text-slate-900">
                     <span className="truncate">{expense.description}</span>
+                    {expense.category && (
+                      <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                        {expense.category}
+                      </span>
+                    )}
                     {expense.splitType === 'exact' && (
                       <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
                         unequal split
