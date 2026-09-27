@@ -12,17 +12,25 @@ const SPLIT_MODES = [
 ]
 
 // Calls onSave({ description, amount, date, paidBy, shares, splitType }) with amounts in cents.
-export default function AddExpenseModal({ members, currentMemberId, onSave, onClose }) {
-  const [description, setDescription] = useState('')
-  const [amountInput, setAmountInput] = useState('')
-  const [date, setDate] = useState(todayISO())
-  const [paidBy, setPaidBy] = useState(currentMemberId)
-  const [sharedBy, setSharedBy] = useState(() => members.map((m) => m.id))
-  const [splitMode, setSplitMode] = useState('equal')
+export default function AddExpenseModal({ members, currentMemberId, onSave, onClose, initialExpense }) {
+  const [description, setDescription] = useState(() => initialExpense?.description ?? '')
+  const [amountInput, setAmountInput] = useState(() =>
+    initialExpense ? centsToInput(initialExpense.amount) : ''
+  )
+  const [date, setDate] = useState(() => initialExpense?.date ?? todayISO())
+  const [paidBy, setPaidBy] = useState(() => initialExpense?.paidBy ?? currentMemberId)
+  const [sharedBy, setSharedBy] = useState(() =>
+    initialExpense ? Object.keys(initialExpense.shares) : members.map((m) => m.id)
+  )
+  const [splitMode, setSplitMode] = useState(() => initialExpense?.splitType ?? 'equal')
   // Typed amounts for exact mode, keyed by member id. Stays empty until the
   // user edits one, so untouched inputs simply follow the equal split.
-  const [manual, setManual] = useState({})
-  const [manualTouched, setManualTouched] = useState(false)
+  const [manual, setManual] = useState(() =>
+    initialExpense && initialExpense.splitType === 'exact'
+      ? Object.fromEntries(Object.entries(initialExpense.shares).map(([id, cents]) => [id, centsToInput(cents)]))
+      : {}
+  )
+  const [manualTouched, setManualTouched] = useState(() => initialExpense?.splitType === 'exact')
   const [error, setError] = useState('')
 
   // Close on Escape and stop the page behind from scrolling.
@@ -127,7 +135,7 @@ export default function AddExpenseModal({ members, currentMemberId, onSave, onCl
         className="max-h-[92vh] w-full overflow-y-auto rounded-t-2xl bg-white p-6 shadow-xl sm:max-w-md sm:rounded-2xl"
       >
         <h2 id="add-expense-title" className="text-lg font-semibold text-slate-900">
-          Add expense
+          {initialExpense ? 'Edit expense' : 'Add expense'}
         </h2>
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">

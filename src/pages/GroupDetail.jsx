@@ -34,6 +34,7 @@ export default function GroupDetail() {
   const { id } = useParams()
   const { user } = useAuth()
   const [showModal, setShowModal] = useState(false)
+  const [editingExpenseId, setEditingExpenseId] = useState(null)
   const [confirmingDeleteId, setConfirmingDeleteId] = useState(null)
   // Bumped after every write so the expense list re-reads from storage.
   const [version, setVersion] = useState(0)
@@ -59,7 +60,12 @@ export default function GroupDetail() {
     return list.sort((a, b) => involvesMe(b) - involvesMe(a))
   }, [group, expenses, me])
 
-  const closeModal = useCallback(() => setShowModal(false), [])
+  const closeModal = useCallback(() => {
+    setShowModal(false)
+    setEditingExpenseId(null)
+  }, [])
+
+  const editingExpense = editingExpenseId ? expenses.find((e) => e.id === editingExpenseId) : null
 
   if (!group || !me) {
     return (
@@ -77,8 +83,15 @@ export default function GroupDetail() {
   const memberName = (memberId) => (memberId === me.id ? 'You' : (memberById[memberId]?.name ?? 'Unknown'))
 
   function handleSave(data) {
+    // Add the replacement before deleting the original so a failed save
+    // (e.g. shares not summing to the total) never leaves the expense gone
+    // with nothing to replace it.
     storage.addExpense({ ...data, groupId: group.id, createdBy: user.id })
+    if (editingExpenseId) {
+      storage.softDeleteExpense(editingExpenseId, user.id)
+    }
     setShowModal(false)
+    setEditingExpenseId(null)
     setVersion((v) => v + 1)
   }
 
@@ -150,6 +163,13 @@ export default function GroupDetail() {
                       </span>
                     )}
                   </p>
+                  {expense.shares && Object.keys(expense.shares).length > 0 && (
+                    <p className="mt-1 text-xs text-slate-600">
+                      {Object.entries(expense.shares)
+                        .map(([memberId, cents]) => `${memberName(memberId)}: ${formatMoney(cents)}`)
+                        .join('  ·  ')}
+                    </p>
+                  )}
                   <p className="text-sm text-slate-500">
                     {expense.paidBy === me.id ? 'You' : memberById[expense.paidBy]?.name} paid ·{' '}
                     {formatDate(expense.date)}
@@ -173,13 +193,27 @@ export default function GroupDetail() {
                       </button>
                     </span>
                   ) : (
-                    <button
-                      onClick={() => setConfirmingDeleteId(expense.id)}
-                      className="rounded-md px-2 py-1 text-sm text-slate-400 hover:bg-red-50 hover:text-red-600"
-                      aria-label={`Delete ${expense.description}`}
-                    >
-                      Delete
-                    </button>
+                    <div className="flex items-center gap-1">
+                      {expense.createdBy === user.id && (
+                        <button
+                          onClick={() => {
+                            setEditingExpenseId(expense.id)
+                            setShowModal(true)
+                          }}
+                          className="rounded-md px-2 py-1 text-sm text-slate-400 hover:bg-blue-50 hover:text-blue-600"
+                          aria-label={`Edit ${expense.description}`}
+                        >
+                          Edit
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setConfirmingDeleteId(expense.id)}
+                        className="rounded-md px-2 py-1 text-sm text-slate-400 hover:bg-red-50 hover:text-red-600"
+                        aria-label={`Delete ${expense.description}`}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   )}
                 </div>
               </li>
@@ -209,6 +243,7 @@ export default function GroupDetail() {
           currentMemberId={me.id}
           onSave={handleSave}
           onClose={closeModal}
+          initialExpense={editingExpense}
         />
       )}
     </div>
