@@ -11,7 +11,17 @@ const SPLIT_MODES = [
   ['exact', 'Exact amounts'],
 ]
 
-// Calls onSave({ description, amount, date, paidBy, shares, splitType }) with amounts in cents.
+const EXPENSE_CATEGORIES = [
+  'Food & Drinks',
+  'Transport',
+  'Accommodation',
+  'Activities',
+  'Shopping',
+  'Utilities',
+  'Other',
+]
+
+// Calls onSave({ description, amount, date, paidBy, shares, splitType, category }) with amounts in cents.
 export default function AddExpenseModal({ members, currentMemberId, onSave, onClose, initialExpense }) {
   const [description, setDescription] = useState(() => initialExpense?.description ?? '')
   const [amountInput, setAmountInput] = useState(() =>
@@ -19,6 +29,7 @@ export default function AddExpenseModal({ members, currentMemberId, onSave, onCl
   )
   const [date, setDate] = useState(() => initialExpense?.date ?? todayISO())
   const [paidBy, setPaidBy] = useState(() => initialExpense?.paidBy ?? currentMemberId)
+  const [category, setCategory] = useState(() => initialExpense?.category ?? 'Other')
   const [sharedBy, setSharedBy] = useState(() =>
     initialExpense ? Object.keys(initialExpense.shares) : members.map((m) => m.id)
   )
@@ -123,7 +134,7 @@ export default function AddExpenseModal({ members, currentMemberId, onSave, onCl
     if (Object.keys(finalShares).length === 0) {
       return setError('At least one person must have a share.')
     }
-    onSave({ description, amount, date, paidBy, shares: finalShares, splitType: splitMode })
+    onSave({ description, amount, date, paidBy, shares: finalShares, splitType: splitMode, category })
   }
 
   return (
@@ -188,22 +199,41 @@ export default function AddExpenseModal({ members, currentMemberId, onSave, onCl
             </div>
           </div>
 
-          <div>
-            <label htmlFor="expense-paid-by" className="block text-sm font-medium text-slate-700">
-              Who paid?
-            </label>
-            <select
-              id="expense-paid-by"
-              value={paidBy}
-              onChange={(e) => setPaidBy(e.target.value)}
-              className={inputClass}
-            >
-              {members.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.id === currentMemberId ? `${m.name} (you)` : m.name}
-                </option>
-              ))}
-            </select>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="expense-paid-by" className="block text-sm font-medium text-slate-700">
+                Who paid?
+              </label>
+              <select
+                id="expense-paid-by"
+                value={paidBy}
+                onChange={(e) => setPaidBy(e.target.value)}
+                className={inputClass}
+              >
+                {members.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.id === currentMemberId ? `${m.name} (you)` : m.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="expense-category" className="block text-sm font-medium text-slate-700">
+                Category
+              </label>
+              <select
+                id="expense-category"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className={inputClass}
+              >
+                {EXPENSE_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <fieldset>
