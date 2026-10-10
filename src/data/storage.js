@@ -177,6 +177,7 @@ export function createGroup({ name, creatorId, memberEmails }) {
 // group member ids (not user ids), so pending members can take part too.
 // splitType is 'equal' or 'exact'; expenses saved before it existed are equal.
 // category is a free string; expenses saved before it existed have none.
+// notes is an optional free-text string ('' when empty); older expenses lack it.
 
 export function getExpensesForGroup(groupId, { includeDeleted = false } = {}) {
   return read(KEYS.expenses, []).filter(
@@ -193,6 +194,7 @@ export function addExpense({
   shares,
   splitType = 'equal',
   category = 'Other',
+  notes = '',
   createdBy,
 }) {
   // Balances only work if every expense adds up, so refuse ones that don't.
@@ -210,6 +212,7 @@ export function addExpense({
     shares,
     splitType,
     category,
+    notes: notes.trim(),
     createdBy,
     createdAt: new Date().toISOString(),
     isDeleted: false,

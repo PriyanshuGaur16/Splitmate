@@ -21,7 +21,7 @@ const EXPENSE_CATEGORIES = [
   'Other',
 ]
 
-// Calls onSave({ description, amount, date, paidBy, shares, splitType, category }) with amounts in cents.
+// Calls onSave({ description, amount, date, paidBy, shares, splitType, category, notes }) with amounts in cents.
 export default function AddExpenseModal({ members, currentMemberId, onSave, onClose, initialExpense }) {
   const [description, setDescription] = useState(() => initialExpense?.description ?? '')
   const [amountInput, setAmountInput] = useState(() =>
@@ -30,6 +30,7 @@ export default function AddExpenseModal({ members, currentMemberId, onSave, onCl
   const [date, setDate] = useState(() => initialExpense?.date ?? todayISO())
   const [paidBy, setPaidBy] = useState(() => initialExpense?.paidBy ?? currentMemberId)
   const [category, setCategory] = useState(() => initialExpense?.category ?? 'Other')
+  const [notes, setNotes] = useState(() => initialExpense?.notes ?? '')
   const [sharedBy, setSharedBy] = useState(() =>
     initialExpense ? Object.keys(initialExpense.shares) : members.map((m) => m.id)
   )
@@ -134,7 +135,7 @@ export default function AddExpenseModal({ members, currentMemberId, onSave, onCl
     if (Object.keys(finalShares).length === 0) {
       return setError('At least one person must have a share.')
     }
-    onSave({ description, amount, date, paidBy, shares: finalShares, splitType: splitMode, category })
+    onSave({ description, amount, date, paidBy, shares: finalShares, splitType: splitMode, category, notes })
   }
 
   return (
@@ -234,6 +235,20 @@ export default function AddExpenseModal({ members, currentMemberId, onSave, onCl
                 ))}
               </select>
             </div>
+          </div>
+
+          <div>
+            <label htmlFor="expense-notes" className="block text-sm font-medium text-slate-700">
+              Notes <span className="font-normal text-slate-400">(optional)</span>
+            </label>
+            <textarea
+              id="expense-notes"
+              rows={2}
+              placeholder="Anything worth remembering"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className={inputClass}
+            />
           </div>
 
           <fieldset>

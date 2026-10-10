@@ -168,6 +168,9 @@ export default function GroupDetail() {
                       </span>
                     )}
                   </p>
+                  {expense.notes && (
+                    <p className="mt-1 text-sm whitespace-pre-line text-slate-600">{expense.notes}</p>
+                  )}
                   {expense.shares && Object.keys(expense.shares).length > 0 && (
                     <p className="mt-1 text-xs text-slate-600">
                       {Object.entries(expense.shares)
