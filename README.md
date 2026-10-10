@@ -7,6 +7,7 @@ Splitmate is a Splitwise-style expense-splitting app for friends and housemates 
 - Create groups and add members by email; people can be added before they have registered and are linked automatically when they sign up
 - Log shared expenses with an equal split or exact custom amounts
 - Tag expenses with a category
+- Add optional notes to an expense, shown under its description in the group
 - See per-member net balances and who owes whom, calculated automatically
 - Delete expenses without losing balance history (soft delete)
 - Edit an expense safely: the replacement is saved before the original is removed
