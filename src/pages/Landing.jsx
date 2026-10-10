@@ -49,6 +49,13 @@ const HERO_ROWS = [
   { name: 'Priya', item: 'Dinner — The Fig', amount: '₹ 2,090.00', status: 'paid' },
 ]
 
+// Full class strings so Tailwind can detect them at build time.
+const ROW_DELAYS = [
+  '[animation-delay:200ms]',
+  '[animation-delay:290ms]',
+  '[animation-delay:380ms]',
+]
+
 export default function Landing() {
   return (
     <div className="ledger-surface min-h-screen bg-paper font-sans text-ink">
@@ -98,10 +105,7 @@ export default function Landing() {
               </div>
             </div>
 
-            <div
-              className="stamp-in border border-rule bg-paper"
-              style={{ animationDelay: '120ms' }}
-            >
+            <div className="stamp-in border border-rule bg-paper [animation-delay:120ms]">
               <div className="flex items-baseline justify-between border-b border-rule px-5 py-3">
                 <span className="font-ledger text-xs uppercase tracking-[0.15em] text-ink-soft">
                   Flat 4B — the tab
@@ -113,15 +117,15 @@ export default function Landing() {
                 {HERO_ROWS.map((row, i) => (
                   <div
                     key={row.name}
-                    className="stamp-in flex items-center justify-between px-5 py-3.5"
-                    style={{ animationDelay: `${200 + i * 90}ms` }}
+                    className={`stamp-in flex items-center justify-between px-5 py-3.5 ${ROW_DELAYS[i]}`}
                   >
                     <div className="flex items-center gap-3">
                       {row.status === 'pending' ? (
-                        <Circle size={16} strokeWidth={2.5} className="text-ink-soft" aria-label="Pending" />
+                        <Circle size={16} strokeWidth={2.5} className="text-ink-soft" />
                       ) : (
-                        <Check size={16} strokeWidth={3} className="text-ink" aria-label="Paid" />
+                        <Check size={16} strokeWidth={3} className="text-ink" />
                       )}
+                      <span className="sr-only">{row.status === 'pending' ? 'Pending' : 'Paid'}</span>
                       <div>
                         <p className="font-medium text-ink">{row.name}</p>
                         <p className="text-sm text-ink-soft">{row.item}</p>
@@ -138,10 +142,7 @@ export default function Landing() {
                   </div>
                 ))}
 
-                <div
-                  className="stamp-in flex items-center justify-between bg-ink px-5 py-3.5"
-                  style={{ animationDelay: '480ms' }}
-                >
+                <div className="stamp-in flex items-center justify-between bg-ink px-5 py-3.5 [animation-delay:480ms]">
                   <div className="flex items-center gap-2">
                     <Check size={16} strokeWidth={3} className="text-stamp" />
                     <span className="font-ledger text-sm uppercase tracking-[0.1em] text-paper">
@@ -245,7 +246,7 @@ export default function Landing() {
         </section>
 
         {/* Final CTA */}
-        <section className="bg-cover">
+        <section className="bg-night">
           <div className="mx-auto max-w-5xl px-4 py-16 text-center sm:py-20">
             <h2 className="font-display text-3xl font-semibold text-paper sm:text-4xl">
               Start your first tab.
