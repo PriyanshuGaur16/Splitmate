@@ -13,9 +13,9 @@ export default function Register() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
-    const result = register(name, email, password)
+    const result = await register(name, email, password)
     if (result.error) {
       setError(result.error)
       return
