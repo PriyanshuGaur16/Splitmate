@@ -8,7 +8,11 @@ export default function useUserGroups(userId) {
   return useMemo(() => {
     const groups = storage.getGroupsForUser(userId).map((group) => {
       const me = group.members.find((m) => m.userId === userId)
-      const net = computeNetBalances(group.members, storage.getExpensesForGroup(group.id))
+      const net = computeNetBalances(
+        group.members,
+        storage.getExpensesForGroup(group.id),
+        storage.getSettlementsForGroup(group.id),
+      )
       return { ...group, myBalance: net[me.id] ?? 0 }
     })
     groups.sort((a, b) => b.createdAt.localeCompare(a.createdAt))

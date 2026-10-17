@@ -1,3 +1,4 @@
+import useDocumentTitle from '../hooks/useDocumentTitle.js'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -6,6 +7,7 @@ import FormField from '../components/FormField.jsx'
 import ErrorMessage from '../components/ErrorMessage.jsx'
 
 export default function Register() {
+  useDocumentTitle('Create Account')
   const { register } = useAuth()
   const navigate = useNavigate()
   const [name, setName] = useState('')

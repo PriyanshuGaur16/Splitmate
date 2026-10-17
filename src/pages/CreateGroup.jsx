@@ -1,3 +1,4 @@
+import useDocumentTitle from '../hooks/useDocumentTitle.js'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -7,6 +8,7 @@ import ErrorMessage from '../components/ErrorMessage.jsx'
 import { isValidEmail } from '../utils/validation.js'
 
 export default function CreateGroup() {
+  useDocumentTitle('New Group')
   const { user } = useAuth()
   const navigate = useNavigate()
   const [name, setName] = useState('')

@@ -1,3 +1,4 @@
+import useDocumentTitle from '../hooks/useDocumentTitle.js'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import useUserGroups from '../hooks/useUserGroups.js'
@@ -25,6 +26,7 @@ function netDisplay(net) {
 }
 
 export default function Dashboard() {
+  useDocumentTitle('Dashboard')
   const { user } = useAuth()
   const { groups, owedToMe, iOwe, net } = useUserGroups(user.id)
 

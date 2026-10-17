@@ -8,6 +8,8 @@ import Register from './pages/Register.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import CreateGroup from './pages/CreateGroup.jsx'
 import GroupDetail from './pages/GroupDetail.jsx'
+import GroupSettings from './pages/GroupSettings.jsx'
+import Reports from './pages/Reports.jsx'
 
 export default function App() {
   return (
@@ -21,8 +23,10 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/reports" element={<Reports />} />
           <Route path="/group/new" element={<CreateGroup />} />
           <Route path="/group/:id" element={<GroupDetail />} />
+          <Route path="/group/:id/settings" element={<GroupSettings />} />
         </Route>
       </Route>
 

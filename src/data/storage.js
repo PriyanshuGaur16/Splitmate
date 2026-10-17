@@ -9,10 +9,12 @@
 
 import { supabase } from '../lib/supabase.js'
 
-const EMPTY = { users: [], groups: [], expenses: [] }
+const EMPTY = { users: [], groups: [], expenses: [], settlements: [] }
 let cache = { ...EMPTY }
 let loadedFor = null
 let loading = null
+// Bumped by clearData(); fetch results started under an older value are dropped.
+let generation = 0
 
 function newId() {
   return crypto.randomUUID()
@@ -71,14 +73,32 @@ async function fetchProfiles() {
   return check(await supabase.from('profiles').select('*')).map(toUser)
 }
 
+function toSettlement(row) {
+  return {
+    id: row.id,
+    groupId: row.group_id,
+    from: row.from_member_id,
+    to: row.to_member_id,
+    amount: row.amount_cents,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+  }
+}
+
 async function fetchAll() {
-  const [users, groups, expenses] = await Promise.all([
+  const [users, groups, expenses, settlements] = await Promise.all([
     fetchProfiles(),
     supabase.from('groups').select('*, group_members(*)').then(check),
     // Soft-deleted expenses are never loaded.
     supabase.from('expenses').select('*, expense_shares(*)').eq('is_deleted', false).then(check),
+    supabase.from('settlements').select('*').then(check),
   ])
-  return { users, groups: groups.map(toGroup), expenses: expenses.map(toExpense) }
+  return {
+    users,
+    groups: groups.map(toGroup),
+    expenses: expenses.map(toExpense),
+    settlements: settlements.map(toSettlement),
+  }
 }
 
 // Loads the signed-in user's data into the cache. Call once after sign-in and
@@ -87,23 +107,26 @@ async function fetchAll() {
 export function loadData(userId) {
   if (loadedFor === userId) return loading ?? Promise.resolve()
   loadedFor = userId
-  loading = fetchAll()
+  const gen = generation
+  const thisLoad = fetchAll()
     .then((data) => {
-      cache = data
+      if (gen === generation) cache = data
     })
     .catch((err) => {
-      loadedFor = null
+      if (gen === generation) loadedFor = null
       throw err
     })
     .finally(() => {
-      loading = null
+      if (gen === generation) loading = null
     })
-  return loading
+  loading = thisLoad
+  return thisLoad
 }
 
 // Drops everything held in memory (on sign-out).
 export function clearData() {
-  cache = { ...EMPTY }
+  generation++
+  cache = { users: [], groups: [], expenses: [], settlements: [] }
   loadedFor = null
   loading = null
 }
@@ -121,12 +144,18 @@ let queue = Promise.resolve()
 let pending = 0
 let needsResync = false
 
+// Returns a promise that resolves to { ok: true } or { error } once the write
+// has finished (and, after a failure, once the cache resync has run). It never
+// rejects, so callers that ignore it are unaffected.
 function enqueue(task) {
   pending++
+  const gen = generation
+  let failed = false
   queue = queue
     .then(task)
     .catch((err) => {
-      console.error('Saving to Supabase failed:', err)
+      console.error('Saving to Supabase failed:', err?.code ?? '', err?.message ?? '')
+      failed = true
       needsResync = true
     })
     .then(async () => {
@@ -134,12 +163,17 @@ function enqueue(task) {
       if (needsResync && pending === 0) {
         needsResync = false
         try {
-          cache = await fetchAll()
+          const data = await fetchAll()
+          // Discard the result if the user signed out while it was loading.
+          if (gen === generation) cache = data
         } catch (err) {
-          console.error('Reloading from Supabase failed:', err)
+          console.error('Reloading from Supabase failed:', err?.code ?? '', err?.message ?? '')
         }
       }
     })
+  return queue.then(() =>
+    failed ? { error: 'Could not save your changes. Please try again.' } : { ok: true },
+  )
 }
 
 // ---------- users ----------
@@ -340,4 +374,107 @@ export function softDeleteExpense(expenseId, deletedBy) {
         .eq('id', expenseId),
     )
   })
+}
+
+// ---------- settlements ----------
+// A settlement is a recorded payment of `amount` cents (integer) from member
+// `from` (the debtor) to member `to` (the creditor), both group member ids.
+// Append-only: never edited or deleted. balances.js applies them as transfers
+// that reduce the debt between exactly that pair.
+
+export function getSettlementsForGroup(groupId) {
+  return cache.settlements.filter((s) => s.groupId === groupId)
+}
+
+export function addSettlement({ groupId, from, to, amount, createdBy }) {
+  if (!Number.isInteger(amount) || amount <= 0) throw new Error('Amount must be positive')
+  if (from === to) throw new Error('Cannot settle with yourself')
+  const settlement = {
+    id: newId(),
+    groupId,
+    from,
+    to,
+    amount,
+    createdBy,
+    createdAt: new Date().toISOString(),
+  }
+  cache.settlements.push(settlement)
+
+  // Resolves to { ok: true } or { error } after the write (and any resync).
+  return enqueue(async () => {
+    check(
+      await supabase.from('settlements').insert({
+        id: settlement.id,
+        group_id: groupId,
+        from_member_id: from,
+        to_member_id: to,
+        amount_cents: amount,
+        created_by: createdBy,
+      }),
+    )
+  })
+}
+
+// ---------- group settings (admin = group creator) ----------
+// Server-side RLS also limits these to the creator: groups_update and
+// group_members_delete both require groups.created_by = auth.uid().
+
+export function isGroupAdmin(groupId, userId) {
+  const group = cache.groups.find((g) => g.id === groupId)
+  return !!group && !!userId && group.createdBy === userId
+}
+
+export const MEMBER_HAS_EXPENSES_ERROR = 'Cannot remove — member has existing expenses.'
+
+// Trimmed name must be non-empty. Updates the cache now, saves in the background.
+export function renameGroup(groupId, name) {
+  const trimmed = name.trim()
+  if (!trimmed) throw new Error('Please give the group a name.')
+  const group = cache.groups.find((g) => g.id === groupId)
+  if (!group) throw new Error('Group not found')
+  group.name = trimmed
+  enqueue(async () => {
+    check(await supabase.from('groups').update({ name: trimmed }).eq('id', groupId))
+  })
+  return hydrateGroup(group)
+}
+
+// Removes a member only if they have no expenses at all in the group (paid or
+// shared), counting soft-deleted ones, which the cache does not hold, so the
+// check asks Supabase. Resolves to { error } or { ok: true }.
+export async function removeGroupMember(groupId, memberId, currentUserId) {
+  const group = cache.groups.find((g) => g.id === groupId)
+  if (!group) return { error: 'Group not found' }
+  if (group.createdBy !== currentUserId) return { error: 'Only the group admin can remove members.' }
+  const member = group.members.find((m) => m.id === memberId)
+  if (!member) return { error: 'Member not found' }
+  if (member.userId === currentUserId) return { error: 'You cannot remove yourself.' }
+
+  try {
+    // Let queued writes (e.g. a just-added expense) reach the server first.
+    await queue
+    const [paid, shared] = await Promise.all([
+      supabase.from('expenses').select('id').eq('group_id', groupId).eq('paid_by', memberId).limit(1),
+      supabase.from('expense_shares').select('expense_id').eq('member_id', memberId).limit(1),
+    ])
+    if (paid.error) throw paid.error
+    if (shared.error) throw shared.error
+    if (paid.data.length > 0 || shared.data.length > 0) return { error: MEMBER_HAS_EXPENSES_ERROR }
+
+    const { data, error } = await supabase
+      .from('group_members')
+      .delete()
+      .eq('id', memberId)
+      .eq('group_id', groupId)
+      .select('id')
+    if (error) {
+      // A foreign-key violation means an expense references them after all.
+      return { error: error.code === '23503' ? MEMBER_HAS_EXPENSES_ERROR : error.message }
+    }
+    if (data.length === 0) return { error: 'Could not remove member.' }
+    group.members = group.members.filter((m) => m.id !== memberId)
+    return { ok: true }
+  } catch (err) {
+    return { error: err.message ?? 'Could not remove member.' }
+  }
 }

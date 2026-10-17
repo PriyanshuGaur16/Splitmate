@@ -12,13 +12,19 @@ export default function AppLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="border-b border-slate-200 bg-white">
+    <div className="min-h-screen bg-paper">
+      <header className="border-b border-rule bg-white">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
           <Link to="/dashboard">
             <Logo />
           </Link>
           <div className="flex items-center gap-4 text-sm">
+            <Link
+              to="/reports"
+              className="rounded-md px-3 py-1.5 font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+            >
+              Reports
+            </Link>
             <span className="hidden text-slate-600 sm:inline">{user.name}</span>
             <button
               onClick={handleLogout}

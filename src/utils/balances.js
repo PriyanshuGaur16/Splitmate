@@ -1,6 +1,9 @@
 // Net balance per member: positive means they are owed money,
 // negative means they owe. Deleted expenses are always ignored.
-export function computeNetBalances(members, expenses) {
+//
+// `payments` are recorded settle-ups ({ from, to, amount }): `from` handed
+// `amount` cents to `to`, so from's position goes up and to's goes down.
+export function computeNetBalances(members, expenses, payments = []) {
   const net = Object.fromEntries(members.map((m) => [m.id, 0]))
   for (const expense of expenses) {
     if (expense.isDeleted) continue
@@ -8,6 +11,10 @@ export function computeNetBalances(members, expenses) {
     for (const [memberId, share] of Object.entries(expense.shares)) {
       net[memberId] = (net[memberId] ?? 0) - share
     }
+  }
+  for (const p of payments) {
+    net[p.from] = (net[p.from] ?? 0) + p.amount
+    net[p.to] = (net[p.to] ?? 0) - p.amount
   }
   return net
 }
@@ -22,7 +29,10 @@ export function computeNetBalances(members, expenses) {
 // new expense change what two uninvolved people owe each other, e.g. Hrishi's
 // debt to you going up because Aditya paid for the turf. Every payment listed
 // here traces back to expenses those two people actually shared.
-export function computeSettlements(members, expenses) {
+//
+// Recorded settle-ups (`payments`) only reduce the debt between exactly the
+// two members involved; nobody else's balances are touched.
+export function computeSettlements(members, expenses, payments = []) {
   const owes = {} // owes[from][to] = cents `from` owes `to`
   for (const expense of expenses) {
     if (expense.isDeleted) continue
@@ -31,6 +41,10 @@ export function computeSettlements(members, expenses) {
       owes[memberId] ??= {}
       owes[memberId][expense.paidBy] = (owes[memberId][expense.paidBy] ?? 0) + share
     }
+  }
+  for (const p of payments) {
+    owes[p.from] ??= {}
+    owes[p.from][p.to] = (owes[p.from][p.to] ?? 0) - p.amount
   }
 
   const settlements = []
