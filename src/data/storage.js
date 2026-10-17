@@ -40,6 +40,8 @@ function toGroup(row) {
     name: row.name,
     createdBy: row.created_by,
     createdAt: row.created_at,
+    // Optional total budget in cents; null when none is set.
+    budgetCents: row.budget_cents ?? null,
     members: [...row.group_members]
       .sort((a, b) => a.created_at.localeCompare(b.created_at))
       .map(toMember),
@@ -232,7 +234,7 @@ async function refreshGroupMembers(groupId) {
 }
 
 // memberEmails should not include the creator; the creator is always added.
-export function createGroup({ name, creatorId, memberEmails }) {
+export function createGroup({ name, creatorId, memberEmails, budgetCents = null }) {
   const creator = getUserById(creatorId)
   if (!creator) throw new Error('Creator not found')
 
@@ -260,15 +262,20 @@ export function createGroup({ name, creatorId, memberEmails }) {
     name: name.trim(),
     createdBy: creator.id,
     createdAt: new Date().toISOString(),
+    budgetCents,
     members,
   }
   cache.groups.push(group)
 
   enqueue(async () => {
     check(
-      await supabase
-        .from('groups')
-        .insert({ id: group.id, name: group.name, created_by: group.createdBy }),
+      await supabase.from('groups').insert({
+        id: group.id,
+        name: group.name,
+        created_by: group.createdBy,
+        // Only sent when set, so groups without a budget don't touch the column.
+        ...(group.budgetCents ? { budget_cents: group.budgetCents } : {}),
+      }),
     )
     // Distinct timestamps keep the members in the order they were added.
     const base = Date.now()
@@ -435,6 +442,20 @@ export function renameGroup(groupId, name) {
   group.name = trimmed
   enqueue(async () => {
     check(await supabase.from('groups').update({ name: trimmed }).eq('id', groupId))
+  })
+  return hydrateGroup(group)
+}
+
+// cents is a positive integer, or null to remove the budget.
+export function updateGroupBudget(groupId, cents) {
+  if (cents !== null && (!Number.isInteger(cents) || cents <= 0)) {
+    throw new Error('Budget must be greater than 0.')
+  }
+  const group = cache.groups.find((g) => g.id === groupId)
+  if (!group) throw new Error('Group not found')
+  group.budgetCents = cents
+  enqueue(async () => {
+    check(await supabase.from('groups').update({ budget_cents: cents }).eq('id', groupId))
   })
   return hydrateGroup(group)
 }

@@ -5,6 +5,8 @@ import { useAuth } from '../context/AuthContext.jsx'
 import * as storage from '../data/storage.js'
 import FormField from '../components/FormField.jsx'
 import ErrorMessage from '../components/ErrorMessage.jsx'
+import { parseBudgetInput } from '../utils/budget.js'
+import { centsToInput } from '../utils/money.js'
 
 export default function GroupSettings() {
   useDocumentTitle('Group Settings')
@@ -14,6 +16,12 @@ export default function GroupSettings() {
   const [name, setName] = useState(() => storage.getGroup(id)?.name ?? '')
   const [renameError, setRenameError] = useState('')
   const [renamed, setRenamed] = useState(false)
+  const [budgetInput, setBudgetInput] = useState(() => {
+    const cents = storage.getGroup(id)?.budgetCents
+    return cents ? centsToInput(cents) : ''
+  })
+  const [budgetError, setBudgetError] = useState('')
+  const [budgetSaved, setBudgetSaved] = useState(false)
   const [memberError, setMemberError] = useState('')
   const [busyId, setBusyId] = useState(null)
   const [confirmingId, setConfirmingId] = useState(null)
@@ -37,6 +45,21 @@ export default function GroupSettings() {
     } catch (err) {
       setRenameError(err.message)
     }
+  }
+
+  function handleBudget(e) {
+    e.preventDefault()
+    setBudgetSaved(false)
+    const parsed = parseBudgetInput(budgetInput)
+    if (parsed.error) {
+      setBudgetError(parsed.error)
+      return
+    }
+    storage.updateGroupBudget(id, parsed.cents)
+    setBudgetInput(parsed.cents === null ? '' : centsToInput(parsed.cents))
+    setBudgetError('')
+    setBudgetSaved(true)
+    setVersion((v) => v + 1)
   }
 
   async function handleRemove(member) {
@@ -77,6 +100,34 @@ export default function GroupSettings() {
         {renamed && (
           <p role="status" className="text-sm text-emerald-700">
             Group renamed.
+          </p>
+        )}
+      </form>
+
+      <form onSubmit={handleBudget} className="mt-6 space-y-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-6">
+        <h2 className="text-lg font-semibold text-slate-900">Budget</h2>
+        <ErrorMessage>{budgetError}</ErrorMessage>
+        <FormField
+          label="Total budget (optional)"
+          id="group-budget"
+          inputMode="decimal"
+          placeholder="e.g. 20000"
+          value={budgetInput}
+          onChange={(e) => {
+            setBudgetInput(e.target.value)
+            setBudgetSaved(false)
+          }}
+        />
+        <p className="text-xs text-slate-500">Leave blank to remove the budget.</p>
+        <button
+          type="submit"
+          className="w-full rounded-lg bg-emerald-600 py-2.5 font-semibold text-white hover:bg-emerald-700"
+        >
+          Save budget
+        </button>
+        {budgetSaved && (
+          <p role="status" className="text-sm text-emerald-700">
+            Budget saved.
           </p>
         )}
       </form>

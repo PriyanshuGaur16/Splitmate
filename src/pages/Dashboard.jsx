@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import useUserGroups from '../hooks/useUserGroups.js'
 import BalanceLabel from '../components/BalanceLabel.jsx'
+import BudgetBar from '../components/BudgetBar.jsx'
 import { formatMoney } from '../utils/money.js'
 
 function SummaryCard({ label, value, tone }) {
@@ -81,6 +82,11 @@ export default function Dashboard() {
                   {group.members.length} {group.members.length === 1 ? 'member' : 'members'}
                 </p>
                 <BalanceLabel cents={group.myBalance} className="mt-3 block text-sm" />
+                {group.budget && (
+                  <div className="mt-3">
+                    <BudgetBar status={group.budget} compact />
+                  </div>
+                )}
               </Link>
             </li>
           ))}

@@ -6,6 +6,7 @@ import * as storage from '../data/storage.js'
 import FormField from '../components/FormField.jsx'
 import ErrorMessage from '../components/ErrorMessage.jsx'
 import { isValidEmail } from '../utils/validation.js'
+import { parseBudgetInput } from '../utils/budget.js'
 
 export default function CreateGroup() {
   useDocumentTitle('New Group')
@@ -15,6 +16,7 @@ export default function CreateGroup() {
   const [emailInput, setEmailInput] = useState('')
   // Each entry: { email, name, pending }
   const [members, setMembers] = useState([])
+  const [budgetInput, setBudgetInput] = useState('')
   const [error, setError] = useState('')
 
   function addMember() {
@@ -55,10 +57,16 @@ export default function CreateGroup() {
       setError('Please give the group a name.')
       return
     }
+    const budget = parseBudgetInput(budgetInput)
+    if (budget.error) {
+      setError(budget.error)
+      return
+    }
     const group = storage.createGroup({
       name,
       creatorId: user.id,
       memberEmails: members.map((m) => m.email),
+      budgetCents: budget.cents,
     })
     navigate(`/group/${group.id}`, { replace: true })
   }
@@ -80,6 +88,15 @@ export default function CreateGroup() {
           required
           value={name}
           onChange={(e) => setName(e.target.value)}
+        />
+
+        <FormField
+          label="Budget (optional)"
+          id="group-budget"
+          inputMode="decimal"
+          placeholder="e.g. 20000"
+          value={budgetInput}
+          onChange={(e) => setBudgetInput(e.target.value)}
         />
 
         <div>

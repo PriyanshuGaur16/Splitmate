@@ -5,6 +5,8 @@ import { useAuth } from '../context/AuthContext.jsx'
 import * as storage from '../data/storage.js'
 import AddExpenseModal from '../components/AddExpenseModal.jsx'
 import ErrorMessage from '../components/ErrorMessage.jsx'
+import BudgetBar from '../components/BudgetBar.jsx'
+import { budgetStatus, totalSpent } from '../utils/budget.js'
 import { computeSettlements } from '../utils/balances.js'
 import { formatMoney } from '../utils/money.js'
 import { formatDate } from '../utils/dates.js'
@@ -165,6 +167,8 @@ export default function GroupDetail() {
     [id, version],
   )
 
+  const budget = budgetStatus(group?.budgetCents, totalSpent(expenses))
+
   const me = group?.members.find((m) => m.userId === user.id && m.status === 'active')
 
   const settlements = useMemo(() => {
@@ -277,6 +281,11 @@ export default function GroupDetail() {
               {group.members.length} {group.members.length === 1 ? 'member' : 'members'} · {expenses.length}{' '}
               {expenses.length === 1 ? 'expense' : 'expenses'}
             </p>
+            {budget && (
+              <div className="mt-3 max-w-xs">
+                <BudgetBar status={budget} />
+              </div>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
