@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import * as storage from '../data/storage.js'
 import { computeNetBalances } from '../utils/balances.js'
+import { budgetStatus, totalSpent } from '../utils/budget.js'
 
 // All groups the user is an active member of, each with the user's net
 // balance in that group (positive = owed to them, negative = they owe).
@@ -8,8 +9,13 @@ export default function useUserGroups(userId) {
   return useMemo(() => {
     const groups = storage.getGroupsForUser(userId).map((group) => {
       const me = group.members.find((m) => m.userId === userId)
-      const net = computeNetBalances(group.members, storage.getExpensesForGroup(group.id))
-      return { ...group, myBalance: net[me.id] ?? 0 }
+      const expenses = storage.getExpensesForGroup(group.id)
+      const net = computeNetBalances(group.members, expenses, storage.getSettlementsForGroup(group.id))
+      return {
+        ...group,
+        myBalance: net[me.id] ?? 0,
+        budget: budgetStatus(group.budgetCents, totalSpent(expenses)),
+      }
     })
     groups.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 

@@ -1,3 +1,4 @@
+import useDocumentTitle from '../hooks/useDocumentTitle.js'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Check, Circle } from 'lucide-react'
 import Logo from '../components/Logo.jsx'
@@ -57,6 +58,7 @@ const ROW_DELAYS = [
 ]
 
 export default function Landing() {
+  useDocumentTitle('Splitmate — Split expenses, not friendships', { full: true })
   return (
     <div className="ledger-surface min-h-screen bg-paper font-sans text-ink">
       <header className="border-b border-rule">
